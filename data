@@ -1,0 +1,17 @@
+import pandas as pd
+import urllib.request as req
+import json
+
+# song_meta (곡 메타데이터)
+url = 'http://arena.kakaocdn.net/kakao_arena/melon_autoplaylist/song_meta.json?TWGServiceId=kakao_arena&Expires=1588151646&Signature=YixmYCzaQTz%2BBOmy/fv9xKgiOFM%3D&AllowedIp=1.241.19.17&download'
+res = req.urlopen(url)
+j = res.read()
+song_meta = pd.read_json(j)
+song_meta.info()
+
+song_meta['song_gn_gnr_basket']
+
+# genre_gn_all (장르 메타데이터)
+with open("C:/kakao/genre_gn_all.json", 'r',encoding='utf-8') as f:
+    genre_gn_all = json.load(f)
+genre_gn_all = pd.DataFrame({'gnr_code':list(genre_gn_all.keys()), 'gnr_name':list(genre_gn_all.values())})
