@@ -1,17 +1,87 @@
+import numpy as np
 import pandas as pd
 import urllib.request as req
 import json
 
-# song_meta (곡 메타데이터)
-url = 'http://arena.kakaocdn.net/kakao_arena/melon_autoplaylist/song_meta.json?TWGServiceId=kakao_arena&Expires=1588151646&Signature=YixmYCzaQTz%2BBOmy/fv9xKgiOFM%3D&AllowedIp=1.241.19.17&download'
-res = req.urlopen(url)
-j = res.read()
-song_meta = pd.read_json(j)
+
+# song_meta (곡 메타데이터) ##########################################################################
+with open("C:/Users/HDK/anaconda3kakao/res/song_meta.json", 'r',encoding='utf-8') as f:
+    song_meta = json.load(f)
+song_meta = pd.DataFrame(song_meta)
 song_meta.info()
 
-song_meta['song_gn_gnr_basket']
+# 곡 아이디(id)와 대분류 장르코드 리스트(song_gn_gnr_basket) 추출
+song_gnr_map = song_meta.loc[:, ['id', 'song_gn_gnr_basket']]
 
-# genre_gn_all (장르 메타데이터)
-with open("C:/kakao/genre_gn_all.json", 'r',encoding='utf-8') as f:
+song_gnr_map.rename(columns = {'id' : 'song_id', 'song_gn_gnr_basket' : 'gnr_code'}, inplace = True)
+
+
+
+# genre_gn_all (장르 메타데이터) ##########################################################################
+with open("C:/Users/HDK/anaconda3kakao/res/genre_gn_all.json", 'r',encoding='utf-8') as f:
     genre_gn_all = json.load(f)
 genre_gn_all = pd.DataFrame({'gnr_code':list(genre_gn_all.keys()), 'gnr_name':list(genre_gn_all.values())})
+
+gnr_code = genre_gn_all[genre_gn_all['gnr_code'].str[-2:] == '00']
+
+# 장르코드 뒷자리 두 자리가 00이 아닌 코드를 필터링
+dtl_gnr_code = genre_gn_all[genre_gn_all['gnr_code'].str[-2:] != '00']
+dtl_gnr_code.rename(columns = {'gnr_code' : 'dtl_gnr_code', 'gnr_name' : 'dtl_gnr_name'}, inplace = True)
+
+# 앞자리 네 자리 공통코드 추출
+gnr_code = gnr_code.assign(join_code = gnr_code['gnr_code'].str[0:4])
+dtl_gnr_code = dtl_gnr_code.assign(join_code = dtl_gnr_code['dtl_gnr_code'].str[0:4])
+
+# Merge
+gnr_code_tree = pd.merge(gnr_code, dtl_gnr_code, how = 'left', on = 'join_code')
+gnr_code_tree[['gnr_code', 'gnr_name', 'dtl_gnr_code', 'dtl_gnr_name']]
+
+
+# train (모델 학습용 파일) ##########################################################################
+with open("C:/Users/HDK/anaconda3kakao/res/train.json", 'r',encoding='utf-8') as f:
+    train = json.load(f)
+train = pd.DataFrame(train)
+train.info()
+
+# val (공개 리더보드용 문제 파일) ##########################################################################
+with open("C:/Users/HDK/anaconda3kakao/res/val.json", 'r',encoding='utf-8') as f:
+    val = json.load(f)
+val = pd.DataFrame(val)
+
+
+# test (파이널 리더보드용 문제 파일) ##########################################################################
+with open("C:/Users/HDK/anaconda3kakao/res/test.json", 'r',encoding='utf-8') as f:
+    test = json.load(f)
+test = pd.DataFrame(test)
+
+with open("C:/Users/HDK/anaconda3kakao/res/results.json", 'r',encoding='utf-8') as f:
+    qqq = json.load(f)
+qqq = pd.DataFrame(qqq)
+
+qqq.info()
+
+i=0
+while True:
+    if len(qqq['songs'][i])!=0:
+        print("1")
+    i+=1
+
+
+
+pd.set_option("display.max_rows",1000)
+pd.set_option("display.max_columns",10)
+
+
+
+
+
+
+
+
+python split_data.py run res/train.json
+
+python most_popular.py run --train_fname=arena_data/orig/train.json --question_fname=arena_data/questions/val.json
+
+python genre_most_popular.py run --song_meta_fname=res/song_meta.json --train_fname=arena_data/orig/train.json --question_fname=arena_data/questions/val.json
+
+python evaluate.py evaluate --gt_fname=arena_data/answers/val.json --rec_fname=arena_data/results/results.json
